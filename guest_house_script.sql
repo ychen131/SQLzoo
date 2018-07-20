@@ -129,3 +129,34 @@ group by booking_date + nights * interval '1 days';
 21st Nov. Be sure to list those days when the room is empty. Show
 the date and the last name. You may find the table calendar
 useful for this query. */
+
+select
+  i,
+  coalesce(last_name, 'Null') as last_name
+from
+  (select
+     generate_series(booking_date, booking_date + (nights - 1) * interval '1 days', '1 days') as date_staying,
+     nights,
+     last_name
+   from booking b
+     join guest g on b.guest_id = g.id
+   where room_no = 207 and booking_date <= '2016-11-21'::date + interval '7 days') as guest_b
+  right join
+  (select i
+   from calendar
+   where i >= '2016-11-21' and i < '2016-11-21' :: date + interval '7 days') dw
+    on guest_b.date_staying = dw.i
+order by i;
+
+
+/*14. Double room for seven nights required. A customer wants
+a double room for 7 consecutive nights as some time between
+2016-11-03 and 2016-12-19. Show the date and room number
+for the first such availabilities.*/
+
+
+
+/*15.Gross income by week. Money is collected from guests
+when they leave. For each Thursday in November show the
+total amount of money collected from the previous Friday to
+that day, inclusive. */
