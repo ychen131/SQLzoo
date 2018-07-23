@@ -107,10 +107,17 @@ order by last_name;
  should be day (Monday, Tuesday ...), floor 1, floor 2,
  floor 3.*/
 
-select to_char((booking_date + nights * interval '1 days'), 'Day') as check_out_date,
-  count(case when substring(room_no::text, 1, 1)= '1' then occupants else null end) as floor1,
-  count(case when substring(room_no::text, 1, 1)= '2' then occupants else null end) as floor2,
-  count(case when substring(room_no::text, 1, 1)= '3' then occupants else null end) as floor3
+select
+  to_char((booking_date + nights * interval '1 days'), 'Day') as check_out_date,
+  count(case when substring(room_no :: text, 1, 1) = '1'
+    then occupants
+        else null end)                                        as floor1,
+  count(case when substring(room_no :: text, 1, 1) = '2'
+    then occupants
+        else null end)                                        as floor2,
+  count(case when substring(room_no :: text, 1, 1) = '3'
+    then occupants
+        else null end)                                        as floor3
 from booking
 where booking_date + nights * interval '1 days' in (select i
                                                     from calendar
@@ -135,12 +142,13 @@ select
   coalesce(last_name, 'Null') as last_name
 from
   (select
+     -- generate_series() generate a line for each day a guest stayed in the house.
      generate_series(booking_date, booking_date + (nights - 1) * interval '1 days', '1 days') as date_staying,
      nights,
      last_name
    from booking b
      join guest g on b.guest_id = g.id
-   where room_no = 207 and booking_date <= '2016-11-21'::date + interval '7 days') as guest_b
+   where room_no = 207 and booking_date <= '2016-11-21' :: date + interval '7 days') as guest_b
   right join
   (select i
    from calendar
@@ -154,6 +162,39 @@ a double room for 7 consecutive nights as some time between
 2016-11-03 and 2016-12-19. Show the date and room number
 for the first such availabilities.*/
 
+/* For this question, I took each double room and calculated the
+days between the check out date for the current booking and the
+check in date of the next booking. Any room bookings with gap
+larger or equal to 7 days are selected. */
+
+select
+  min(check_out_date) :: date as available_date,
+  check_out.room_no
+from (select
+        booking_id,
+        booking_date,
+        room_no,
+        (booking_date + nights * interval '1 days') as check_out_date,
+        row_number()
+        over (
+          order by (room_no, booking_date) )        as rown1
+      from booking
+      where room_type_requested = 'double' and (booking_date, booking_date + nights * interval '1 days')
+                                               overlaps ('2016-11-03' :: date, '2016-12-19' :: date)) check_out
+  Join
+  (select
+     booking_id,
+     booking_date                             as next_booking_date,
+     room_no,
+     row_number()
+     over (
+       order by (room_no, booking_date) ) - 1 as rown2
+   from booking
+   where room_type_requested = 'double' and (booking_date, booking_date + nights * interval '1 days')
+                                            overlaps ('2016-11-03' :: date, '2016-12-19' :: date)) next_booking
+    on check_out.rown1 = next_booking.rown2
+where next_booking_date - check_out_date :: date >= 7
+group by check_out_date, check_out.room_no;
 
 
 /*15.Gross income by week. Money is collected from guests
