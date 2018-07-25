@@ -164,7 +164,7 @@ for the first such availabilities.*/
 
 /* For this question, I took each double room and calculated the
 days between the check out date for the current booking and the
-check in date of the next booking. Any room bookings with gap
+check in date of the next booking. Any room bookings with a gap
 larger or equal to 7 days are selected. */
 
 select
@@ -201,3 +201,33 @@ group by check_out_date, check_out.room_no;
 when they leave. For each Thursday in November show the
 total amount of money collected from the previous Friday to
 that day, inclusive. */
+
+/*In this problem, I first created a column 'check_out_week'
+and each week starts from Thursday and ends on Friday. Then
+I join the booking table with rate and extra tables to
+obtain the total payment due for each room.*/
+
+select
+  max(booking_date + nights * interval '1 Days') :: date  as Date,
+  sum(r.amount * nights) + sum(extra_amount) as total_amount
+from
+  (select
+     *,
+     date_part('week', (booking_date + nights * interval '1 Days') :: date - 4) as check_out_week,
+     to_char(booking_date + nights * interval '1 Days', 'Day')                  as dow_checkout
+   from booking
+   order by booking_date) weekly_check_out
+  join
+  rate r on r.room_type = weekly_check_out.room_type_requested and r.occupancy = weekly_check_out.occupants
+  left join (select
+               e.booking_id,
+               sum(amount) as extra_amount
+             from extra e
+             group by e.booking_id
+            ) ea on ea.booking_id = weekly_check_out.booking_id
+group by check_out_week;
+
+/*The last booking date in the data set is '2016-12-19'
+and the guest stayed for one night. Hence the last date
+in my output is the last data point in the data
+set.*/
